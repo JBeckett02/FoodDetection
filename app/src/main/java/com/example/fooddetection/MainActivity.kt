@@ -1,46 +1,67 @@
 package com.example.fooddetection
 
+import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.fooddetection.ui.theme.FoodDetectionTheme
+import android.os.Environment
+import android.widget.Button
+import android.widget.Toast
+import io.fotoapparat.Fotoapparat
+import io.fotoapparat.configuration.CameraConfiguration
+import io.fotoapparat.configuration.UpdateConfiguration
+import io.fotoapparat.parameter.ScaleType
+import io.fotoapparat.result.BitmapPhoto
+import io.fotoapparat.result.PhotoResult
+import io.fotoapparat.view.CameraView
+import java.io.File
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var cameraView: CameraView
+    private lateinit var takePhotoButton: Button
+    private lateinit var fotoapparat: Fotoapparat
+
+    val photoFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "foodimage.jpg")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            FoodDetectionTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Greeting("Android")
-                }
-            }
+        setContentView(R.layout.activity_main)
+
+        // Initialize views
+        cameraView = findViewById(R.id.camera_preview)
+        takePhotoButton = findViewById(R.id.take_photo_button)
+
+
+        fotoapparat = Fotoapparat(
+            context = this,
+            view = cameraView
+        )
+
+        // Set click listener for the take photo button
+        takePhotoButton.setOnClickListener {
+            takePhoto()
         }
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+    override fun onStart() {
+        super.onStart()
+        // Start Fotoapparat
+        fotoapparat.start()
+    }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    FoodDetectionTheme {
-        Greeting("Android")
+    override fun onStop() {
+        super.onStop()
+        // Stop Fotoapparat
+        fotoapparat.stop()
+    }
+
+    private fun takePhoto() {
+        // Take photo using Fotoapparat
+        fotoapparat.takePicture()
+            .saveToFile(photoFile)
     }
 }
+
+
+
+
+

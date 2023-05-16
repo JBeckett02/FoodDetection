@@ -91,7 +91,10 @@ class MainActivity : AppCompatActivity() {
 
         photoResult.toBitmap().whenAvailable { bitmapPhoto ->
             if (bitmapPhoto != null) {
-                detectObjects(bitmapPhoto.bitmap)
+                val shhhh = assets.open("hard-boiled-eggs1.jpg")
+                val bitmapEgg = BitmapFactory.decodeStream(shhhh)
+                //detectObjects(bitmapPhoto.bitmap)
+                detectObjects(bitmapEgg)
             }
         }
     }
@@ -122,26 +125,40 @@ class MainActivity : AppCompatActivity() {
         // TODO: Implement code to process the detection results and display them
         val detectionResults = mutableListOf<DetectionResult>()
         for (score in scores) {
-            val classIndex = score[4]
-            val confidence = score[5]
+            val scoreList = score.toMutableList()
+
+            for(i in 0..4) {
+                scoreList.removeAt(i)
+            }
+
+            val highestScore = scoreList.max()
+            val classIndex = scoreList.indexOf(highestScore)
+            val objectness = score[4]
+            Log.d("conf", objectness.toString())
+            //if(objectness > 0.6){
+            val confidence = score[classIndex]
+            Log.d("", confidence.toString())
             val boundingBox = getBoundingBox(score)
 
             val detectionResult = DetectionResult(classIndex, confidence, boundingBox)
-            detectionResults.add(detectionResult)
+            if(confidence > 0.4f) {
+                detectionResults.add(detectionResult)
+            }
+            //}
         }
 
-        // Example code to display the image with bounding boxes
-        imageView.setImageBitmap(imageBitmap)
+        val newBitmap = displayDetectionResults(imageBitmap, detectionResults)
 
-        displayDetectionResults(imageBitmap, detectionResults)
+        // Example code to display the image with bounding boxes
+        imageView.setImageBitmap(newBitmap)
     }
 
     private fun getBoundingBox(score: FloatArray): BoundingBox {
-        val left = score[0]
-        val top = score[1]
-        val right = score[2]
-        val bottom = score[3]
-        return BoundingBox(left, top, right, bottom)
+        val x = score[0]
+        val y = score[1]
+        val width = score[2]
+        val height = score[3]
+        return BoundingBox(x, y, height, width)
     }
 
     private fun preprocessImage(imageBitmap: Bitmap): ByteBuffer {
@@ -149,10 +166,6 @@ class MainActivity : AppCompatActivity() {
         val imageSizeX = inputShape[1]
         val imageSizeY = inputShape[2]
         val imageChannels = inputShape[3]
-
-        Log.d("a", imageSizeX.toString())
-        Log.d("b", imageSizeY.toString())
-        Log.d("c", imageChannels.toString())
 
         val inputByteBuffer = ByteBuffer.allocateDirect(1 * imageSizeX * imageSizeY * imageChannels * 4)
         inputByteBuffer.order(ByteOrder.nativeOrder())
@@ -238,7 +251,7 @@ class MainActivity : AppCompatActivity() {
         return Bitmap.createScaledBitmap(imageBitmap, resizedWidth, resizedHeight, false)
     }
 
-    private fun displayDetectionResults(imageBitmap: Bitmap, detectionResults: List<DetectionResult>) {
+    private fun displayDetectionResults(imageBitmap: Bitmap, detectionResults: List<DetectionResult>): Bitmap? {
         val mutableBitmap = imageBitmap.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(mutableBitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -247,15 +260,26 @@ class MainActivity : AppCompatActivity() {
         paint.strokeWidth = 2f
 
         for (detectionResult in detectionResults) {
-            val rect = detectionResult.boundingBox.toRectF()
+            var bb = detectionResult.boundingBox
+
+            val bbLeft = bb.x * mutableBitmap.width
+            val bbTop = bb.y * mutableBitmap.height
+            val bbRight = bbLeft + (bb.width * mutableBitmap.width)
+            val bbBottom = bbTop + (bb.height * mutableBitmap.height)
+
+            val rect = RectF(bbLeft, bbTop, bbRight, bbBottom)
+
             canvas.drawRect(rect, paint)
 
             // Display the class label and confidence score
-            val label = getClassLabel(detectionResult.classIndex.toInt())
+            val label = getClassLabel(detectionResult.classIndex)
+            Log.d("", label)
             val confidence = detectionResult.confidence
             val text = "$label: $confidence"
             canvas.drawText(text, rect.left, rect.top, paint)
         }
+
+        return mutableBitmap
     }
 
     private fun getClassLabel(classIndex: Int): String {
@@ -274,20 +298,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     data class DetectionResult(
-        val classIndex: Float,
+        val classIndex: Int,
         val confidence: Float,
         val boundingBox: BoundingBox
     )
 
     data class BoundingBox(
-        val left: Float,
-        val top: Float,
-        val right: Float,
-        val bottom: Float
-    ) {
-        fun toRectF(): RectF {
-            return RectF(left, top, right, bottom)
-        }
-    }
-
+        val x: Float,
+        val y: Float,
+        val height: Float,
+        val width: Float
+    )
 }
